@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <script type="text/javascript" src="phaser-3.11.0\dist\phaser.min.js"></script>
+</head>
+<body>
+
+    <script>
+//Config del area de trabajo del juego
+    var config = {
+        type: Phaser.AUTO,
+        width: 800,
+        height: 600,
+        physics:
+        {
+            default: 'arcade',
+            arcade:
+              {
+              gravity: { y: 300 }
+              }
+        },
+        scene:
+        {
+          preload: preload,
+          create: create,
+          update: update
+        }
+    };
+//Variables de las plataformas
+    var platform;
+    var cursors;
+    var player;
+    var score = 0;
+    var scoreText;
+
+    var game = new Phaser.Game(config);
+//Donde se carga todo en el cache
+    function preload ()
+    {
+        this.load.setBaseURL('http://labs.phaser.io');
+
+        this.load.image('sky', "assets/skies/chrome.png");
+        this.load.image('red', 'assets/sprites/darkwing_crazy.png');
+//SpriteSheet del personaje, con la ubicacion del frame que se mostrara con su tamañao
+        this.load.spritesheet("dude", 'assets/sprites/dude.png',
+                              {frameWidth: 32, frameHeight: 48});
+        this.load.image("ground", 'assets/sprites/platform.png');
+        this.load.image("ball", "assets/sprites/aqua_ball.png");
+    }
+
+
+
+//Donde se utilizan los elementos y se visualizan
+    function create ()
+    {
+
+        this.add.image(400, 300, 'sky');
+
+        scoreText =this.add.text(16, 16, "score: 0",
+          {
+            fontsize: "32px", fill: "#000"
+          });
+
+        platform = this.physics.add.staticGroup();
+//plataforma Base
+        platform.create(400,640, "ground").setScale(2).refreshBody();
+
+        platform.create(0,300, "ground");
+        platform.create(600,480, "ground");
+
+//input de movimiento
+        cursors = this.input.keyboard.createCursorKeys();
+
+//Caracteristicas del personaje
+        player = this.physics.add.sprite(20, 540, "dude");
+        player.setBounce(0.2);
+        player.setCollideWorldBounds(true);
+        player.setGravity(300);
+
+//Animacion a la Izquierda
+        this.anims.create({
+          key: "left",
+          frames: this.anims.generateFrameNumbers("dude", {start: 0, end: 3}),
+          frameRate: 10,
+          repeat: -1
+        });
+
+//animacion Estatica
+        this.anims.create({
+          key: "turn",
+          frames: [ {key: "dude", frame: 4 } ],
+          frameRate: 20
+        });
+
+//Animacion a la derecha
+        this.anims.create({
+          key: "right",
+          frames: this.anims.generateFrameNumbers("dude", {start: 5, end: 8}),
+          frameRate: 10,
+          repeat: -1
+        });
+
+//Recolectables
+        balls = this.physics.add.group({
+                key: "ball",
+                repeat: 10,
+                setXY: { x: 12, y: 0, stepX: 70}
+              });
+        balls.children.iterate(function(child){
+          child.setBounceY(Phaser.Math.FloatBetween(0.4, 0.9));
+        });
+
+//Bombas
+        bombs = this.physics.add.group();
+
+//Funcion de recoleccion
+        function collectBall(player, ball)
+        {
+          ball.disableBody(true, true);
+
+          score += 10;
+          scoreText.setText("Score: " + score);
+
+          if (balls.countActive(true) == 0)
+          {
+              balls.children.iterate(function (child)
+              {
+                child.enableBody(true, child.x, 0, true, true);
+              });
+
+              var x = (player.x < 400) ? Phaser.Math.Between(400, 800) : Phaser.Math.Between(0, 400);
+
+              var red = bombs.create(x, 16, "red");
+              red.setBounce(1);
+              red.setCollideWorldBounds(true);
+              red.setVelocity(Phaser.Math.Between(-200, 200), 20);
+              red.allowGravity = false;
+          }
+        }
+
+
+//Funcion de las bombas para parar el juego
+        function hitBomb(player, red){
+          this.physics.pause();
+          player.setTint(0xff0000);
+          player.anims.play("turn", true);
+          gameOver = true;
+        }
+
+//Colisiones
+        this.physics.add.collider(player, platform);
+        this.physics.add.collider(balls, platform);
+        this.physics.add.overlap(player, balls, collectBall, null, this);
+        this.physics.add.collider(bombs, platform);
+        this.physics.add.collider(player, bombs, hitBomb, null, this);
+    }
+
+
+  //Donde se generan los cambios que se ven
+    function update ()
+    {
+      if (cursors.left.isDown) {
+        player.setVelocityX(-160);
+        player.anims.play("left", true);
+      }
+      else if (cursors.right.isDown) {
+        player.setVelocityX(160);
+        player.anims.play("right", true);
+      }
+      else {
+        player.setVelocityX(0);
+        player.anims.play("turn", true);
+      }
+      if (cursors.up.isDown && player.body.touching.down){
+        player.setVelocityY(-500);
+      }
+    }
+    </script>
+</body>
+</html>
